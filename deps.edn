@@ -6,7 +6,7 @@
  :aliases {:dev    {:extra-paths ["dev"]
                     :extra-deps  {org.clojure/clojure            {:mvn/version "1.12.1"}
                                   dev.onionpancakes/chassis      {:mvn/version "1.0.365"}
-                                  metosin/reitit                 {:mvn/version "0.8.0"}
+                                  metosin/reitit                 {:mvn/version "0.9.1"}
                                   org.flatland/ordered           {:mvn/version "1.15.12"}
                                   dev.data-star.clojure/sdk      {:mvn/version "1.0.0-RC1"}
                                   dev.data-star.clojure/http-kit {:mvn/version "1.0.0-RC1"}}}
