@@ -12,5 +12,5 @@
                                                           :git/sha   "7f7b555998d24d5a33e16eecbdfd6aa554a16427"
                                                           :deps/root "sdk/clojure/sdk"}
                                datastar/http-kit         {:git/url   "https://github.com/starfederation/datastar/"
-                                                          :git/sha   "7f7b555998d24d5a33e16eecbdfd6aa554a16427"
+                                                          :git/sha   "598151471c85b84bda1127d979dfb37161554348"
                                                           :deps/root "sdk/clojure/adapter-http-kit"}}}}}
