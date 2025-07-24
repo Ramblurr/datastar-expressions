@@ -24,7 +24,7 @@ jobs:
         shell: bash
 
       - name: Install clojure + tools
-        uses: DeLaGuardo/setup-clojure@ada62bb3282a01a296659d48378b812b8e097360 # tag 13.2
+        uses: DeLaGuardo/setup-clojure@3fe9b3ae632c6758d0b7757b0838606ef4287b08 # tag 13.2
         with:
           cli: latest
           bb: latest
