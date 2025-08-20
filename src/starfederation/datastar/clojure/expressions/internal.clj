@@ -5,7 +5,8 @@
   (:require
    [clojure.string :as str]
    [clojure.walk :as clojure.walk]
-   [squint.compiler :as squint]))
+   [squint.compiler :as squint]
+   [backtick         :refer [template]]))
 
 (defn bool-expr [e]
   (if (boolean? e)
@@ -94,10 +95,11 @@
          (map name))
         (tree-seq coll? seq form)))
 
-(= #{"$record-id" "$foo-bar" "$red-panda"}
-   (collect-kebab-signals
-    `(do (set! ~'$record-id ~collect-kebab-signals)
-         (~'@post "/defile-record" {:wut (+ $red-panda ~'$foo-bar)}))))
+(comment
+  (= #{"$record-id" "$foo-bar" "$red-panda"}
+     (collect-kebab-signals
+      `(do (set! ~'$record-id ~collect-kebab-signals)
+           (~'@post "/defile-record" {:wut (+ $red-panda ~'$foo-bar)})))))
 
 (defn restore-signals-casing
   "Post-processes compiled js to preserve the original casing of kebab cased signals
@@ -142,11 +144,12 @@
 
 (defn js* [form]
   (->
-   (squint.compiler/compile-string (str form) {:elide-imports true
-                                               :elide-exports true
-                                               :top-level     false
-                                               :context       :expr
-                                               :macros        compiler-macro-options})
+   (squint/compile-string (pr-str form)
+                          {:elide-imports true
+                           :elide-exports true
+                           :top-level     false
+                           :context       :expr
+                           :macros        compiler-macro-options})
    (replace-deref)
    (replace-truth)
    (restore-signals-casing form)
@@ -154,11 +157,10 @@
    (str/trim)))
 
 (defn compile [forms]
-  (str/join "; "
-            (map js*
-                 (if (sequential? forms)
-                   forms
-                   (list forms)))))
+  (->> forms
+       (remove (fn [x] (= x 'do)))
+       (map js*)
+       (str/join "; ")))
 
 (defn process-string-concat
   "This function converts forms whose head is a symbol starting with $ into string concatenation forms"
@@ -213,12 +215,36 @@
        (cons 'expr/js-template node)
        node)) form))
 
+(defprotocol IJSExpression
+  (clj [this] "Get clojure form of expression")
+  (js  [this] "Get js form of expression"))
+
+(deftype JSExpression [clj-form]
+  Object
+  (toString [this] (js this))
+  IJSExpression
+  (clj [_this] clj-form)
+  (js  [this] (compile (clj this))))
+
+(defmethod print-method JSExpression [v w]
+  (.write w (pr-str (clj v))))
+
+(defmethod print-dup JSExpression [v w]
+  (.write w (pr-str (clj v))))
+
 (defn pre-process [forms]
   (-> forms
       process-not-equals
       process-interpolation
       process-string-concat
       process-macros))
+
+(defmacro d*js [& forms]
+  (let [processed-form (map pre-process forms)]
+    `(->JSExpression (template (do ~@processed-form)))))
+
+(defmacro d*js-str [& forms]
+  `(str (d*js ~@forms)))
 
 (comment
   (def record {:record-id 1234})
@@ -231,4 +257,28 @@
   (let [thing 1234]
     (process-string-concat `(do ($wut ~thing "bar"))))
   ;; => (do (clojure.core/unquote (clojure.core/symbol (str "$wut" 1234 "bar"))))
+
+
+  ;; basic stuff still works:
+  (str (d*js (set! $signal 55))) ;; => "$signal = 55"
+
+  ;; Complex stuff works:
+  (def my-d*js (let [x (d*js (.. evt -target -value))
+                     num 55
+                     y (d*js (+ ~num ~x))]
+                 (d*js (set! $signal ~y)
+                       (set! $other-signal "no"))))
+  (clj my-d*js) ;; => (do (set! $signal (do (+ 55 (do (.. evt -target -value))))) (set! $other-signal "no"))
+  (js my-d*js) ;; => "$signal = (55) + (evt.target.value); $other-signal = \"no\""
+  (str my-d*js) ;; => "$signal = (55) + (evt.target.value); $other-signal = \"no\""
+  (pr-str my-d*js) ;; => "(do (set! $signal (do (+ 55 (do (.. evt -target -value))))) (set! $other-signal \"no\"))"
+
+
+  ;; Works w/ chassis:
+  (require '[dev.onionpancakes.chassis.core :as chassis])
+  (let [x (d*js (.. evt -target -value))]
+    (chassis/html [:div {:data-on-whatever (d*js (set! $signal ~x))}]))
+  ;; => "<div data-on-whatever=\"$signal = evt.target.value\"></div>"
+
+
   )
